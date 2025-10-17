@@ -27,8 +27,10 @@ class LLMAdapter:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=Config.GEMINI_API_KEY)
-                self.client = genai.GenerativeModel(self.model)
-                logger.info(f"Initialized Gemini client: {self.model}")
+                # Model adını düzelt - API "models/" prefix istiyor
+                model_name = self.model if self.model.startswith("models/") else f"models/{self.model}"
+                self.client = genai.GenerativeModel(model_name)
+                logger.info(f"Initialized Gemini client: {model_name}")
             except ImportError:
                 logger.warning("Google AI library not installed. Run: pip install google-generativeai")
         
@@ -61,7 +63,7 @@ class LLMAdapter:
             if self.model.startswith("gpt"):
                 return self._generate_openai(prompt, max_tokens, temperature, json_mode)
             elif self.model.startswith("gemini"):
-                return self._generate_gemini(prompt, max_tokens, temperature)
+                return self._generate_gemini(prompt, max_tokens, temperature, json_mode)
             elif self.model.startswith("claude"):
                 return self._generate_claude(prompt, max_tokens, temperature)
         except Exception as e:
@@ -84,14 +86,21 @@ class LLMAdapter:
         response = self.client.chat.completions.create(**kwargs)
         return response.choices[0].message.content
     
-    def _generate_gemini(self, prompt: str, max_tokens: int, temperature: float) -> str:
+    def _generate_gemini(self, prompt: str, max_tokens: int, 
+                        temperature: float, json_mode: bool) -> str:
         """Generate using Gemini API."""
+        generation_config = {
+            "max_output_tokens": max_tokens,
+            "temperature": temperature
+        }
+        
+        # JSON mode için prompt'a ekleme yap
+        if json_mode:
+            prompt = prompt + "\n\nIMPORTANT: Respond ONLY with valid JSON. Do not include any text outside the JSON structure."
+        
         response = self.client.generate_content(
             prompt,
-            generation_config={
-                "max_output_tokens": max_tokens,
-                "temperature": temperature
-            }
+            generation_config=generation_config
         )
         return response.text
     

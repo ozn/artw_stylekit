@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿# ARTW StyleKit
 
 Academic writing style analyzer and generator for Turkish art history journals.
@@ -55,3 +56,6 @@ artw_stylekit/
 ## License
 
 MIT
+=======
+# artw_stylekit
+>>>>>>> b77990f65dfe0eed524be2c332f3e9f5ded84a3b
