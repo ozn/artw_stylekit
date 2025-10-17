@@ -1,0 +1,11 @@
+﻿.venv/
+__pycache__/
+*.pyc
+data/
+out/
+.env
+*.pdf
+*.docx
+*.zip
+.DS_Store
+*.log

@@ -1,0 +1,81 @@
+﻿"""Command-line interface."""
+import click
+from pathlib import Path
+from rich.console import Console
+from ..config import Config
+from ..logger import logger
+
+console = Console()
+
+@click.group()
+@click.version_option(version="0.1.0")
+def cli():
+    """ARTW StyleKit - Academic writing assistant."""
+    Config.ensure_dirs()
+
+@cli.command()
+@click.option('--src', type=click.Path(exists=True), required=True, help='Source directory')
+@click.option('--out', type=click.Path(), default='data/corpus.jsonl', help='Output JSONL file')
+@click.option('--sample', type=int, default=None, help='Limit to N files')
+@click.option('--workers', type=int, default=None, help='Parallel workers')
+def ingest(src, out, sample, workers):
+    """Ingest PDF corpus."""
+    from ..ingest.parallel_ingest import ingest_corpus
+    
+    src_path = Path(src)
+    out_path = Path(out)
+    
+    console.print(f"[bold blue]Ingesting corpus from {src_path}[/]")
+    processed = ingest_corpus(src_path, out_path, sample, workers)
+    console.print(f"[bold green]✓ Processed {processed} documents → {out_path}[/]")
+
+@cli.command()
+@click.option('--corpus', type=click.Path(exists=True), required=True, help='Corpus JSONL file')
+@click.option('--out', type=click.Path(), default='data/style_profile.json', help='Output JSON file')
+def profile(corpus, out):
+    """Generate style profile."""
+    from ..analysis.style_profile import StyleProfiler
+    import json
+    
+    profiler = StyleProfiler()
+    profiler.load_corpus(Path(corpus))
+    
+    console.print("[bold blue]Analyzing style...[/]")
+    profile_data = profiler.analyze()
+    
+    out_path = Path(out)
+    with open(out_path, 'w', encoding='utf-8') as f:
+        json.dump(profile_data, f, indent=2, ensure_ascii=False)
+    
+    console.print(f"[bold green]✓ Profile saved → {out_path}[/]")
+    console.print(f"  Documents: {profile_data['document_count']}")
+    console.print(f"  Avg length: {profile_data['avg_doc_length']:.0f} words")
+
+@cli.command()
+@click.option('--profile', type=click.Path(exists=True), required=True, help='Profile JSON file')
+def inspect(profile):
+    """Inspect style profile."""
+    import json
+    from rich.table import Table
+    
+    with open(profile, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    console.print("[bold]Style Profile Summary[/]\n")
+    console.print(f"Documents: {data['document_count']}")
+    console.print(f"Avg doc length: {data['avg_doc_length']:.0f} words")
+    console.print(f"Vocabulary size: {data['vocabulary']['unique_tokens']:,}")
+    console.print(f"Lexical diversity: {data['vocabulary']['lexical_diversity']:.3f}")
+    console.print(f"Avg sentence: {data['sentence_structure']['avg_sentence_length']:.1f} words\n")
+    
+    table = Table(title="Top 20 Terms")
+    table.add_column("Term", style="cyan")
+    table.add_column("Frequency", style="green")
+    
+    for term, freq in list(data['vocabulary']['top_50_words'].items())[:20]:
+        table.add_row(term, str(freq))
+    
+    console.print(table)
+
+if __name__ == "__main__":
+    cli()
